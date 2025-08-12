@@ -7,12 +7,12 @@ export class GetUsersQuery {
   constructor(
     public readonly filter?: BaseFilterDto,
     public readonly pagination?: PaginationDto,
-  ) {}
+  ) { }
 }
 
 @QueryHandler(GetUsersQuery)
 export class GetUsersQueryHandler implements IQueryHandler<GetUsersQuery, UserDto[]> {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(private readonly dbService: DatabaseService) { }
 
   async execute(query: GetUsersQuery): Promise<UserDto[]> {
     let queryBuilder = this.dbService.getKnex()('users').select('*');

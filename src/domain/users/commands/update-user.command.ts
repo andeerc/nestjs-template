@@ -3,7 +3,8 @@ import { NotFoundException } from '@nestjs/common';
 
 import { UpdateUserDto } from '../dto/update-user.dto';
 import { UserDto } from '../dto/user.dto';
-import { DatabaseService } from '@/infrastructure/database/database.service';
+import { InjectKnex, Knex } from 'nestjs-knex';
+import { UserMapper } from '../utils/user-mapper.util';
 
 export class UpdateUserCommand {
   constructor(
@@ -14,17 +15,17 @@ export class UpdateUserCommand {
 
 @CommandHandler(UpdateUserCommand)
 export class UpdateUserCommandHandler implements ICommandHandler<UpdateUserCommand, UserDto> {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(@InjectKnex() private readonly knex: Knex) {}
 
   async execute(command: UpdateUserCommand): Promise<UserDto> {
-    const existingUser = await this.dbService.getKnex()('users').where({ id: command.id }).first();
+    const existingUser = await this.knex('users').where({ id: command.id }).first();
 
     if (!existingUser) {
       throw new NotFoundException(`User with ID ${command.id} not found`);
     }
 
     const updatePayload: any = {
-      updated_at: this.dbService.getKnex().fn.now(),
+      updated_at: this.knex.fn.now(),
     };
 
     if (command.updateUserDto.firstName) updatePayload.first_name = command.updateUserDto.firstName;
@@ -41,30 +42,12 @@ export class UpdateUserCommandHandler implements ICommandHandler<UpdateUserComma
     if (command.updateUserDto.metadata !== undefined)
       updatePayload.metadata = JSON.stringify(command.updateUserDto.metadata);
 
-    const [user] = await this.dbService
-      .getKnex()('users')
+    const [user] = await this.knex('users')
       .where({ id: command.id })
       .update(updatePayload)
       .returning('*');
 
-    return this.mapToDto(user);
+    return UserMapper.toDto(user);
   }
 
-  private mapToDto(user: any): UserDto {
-    return {
-      id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      phone: user.phone,
-      avatarUrl: user.avatar_url,
-      role: user.role,
-      isActive: user.is_active,
-      emailVerified: user.email_verified,
-      emailVerifiedAt: user.email_verified_at,
-      preferences: user.preferences ? JSON.parse(user.preferences) : null,
-      metadata: user.metadata ? JSON.parse(user.metadata) : null,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-  }
 }

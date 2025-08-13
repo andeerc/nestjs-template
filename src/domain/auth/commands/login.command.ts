@@ -4,7 +4,7 @@ import * as bcrypt from 'bcrypt';
 import { JwtUtilService } from '@/infrastructure/auth/jwt-util.service';
 import { LoginResponseDto } from '../dto/login-response.dto';
 import { LoginStatus } from '../entities/user-login.entity';
-import { DatabaseService } from '@/infrastructure/database/database.service';
+import { InjectKnex, Knex } from 'nestjs-knex';
 
 export class LoginCommand {
   constructor(
@@ -17,14 +17,13 @@ export class LoginCommand {
 @CommandHandler(LoginCommand)
 export class LoginCommandHandler implements ICommandHandler<LoginCommand, LoginResponseDto> {
   constructor(
-    private readonly dbService: DatabaseService,
+    @InjectKnex() private readonly knex: Knex,
     private readonly jwtUtilService: JwtUtilService,
   ) {}
 
   async execute(command: LoginCommand): Promise<LoginResponseDto> {
     // Get user login record with user data
-    const loginRecord = await this.dbService
-      .getKnex()('user_logins as ul')
+    const loginRecord = await this.knex('user_logins as ul')
       .join('users as u', 'ul.user_id', 'u.id')
       .where('ul.email', command.email)
       .select([
@@ -117,15 +116,14 @@ export class LoginCommandHandler implements ICommandHandler<LoginCommand, LoginR
   }
 
   private async recordFailedAttempt(loginId: string): Promise<void> {
-    const loginRecord = await this.dbService
-      .getKnex()('user_logins')
+    const loginRecord = await this.knex('user_logins')
       .where({ id: loginId })
       .first();
 
     const newFailedAttempts = (loginRecord?.failed_attempts || 0) + 1;
     const updateData: any = {
       failed_attempts: newFailedAttempts,
-      updated_at: this.dbService.getKnex().fn.now(),
+      updated_at: this.knex.fn.now(),
     };
 
     // Lock account after 5 failed attempts for 30 minutes
@@ -134,19 +132,18 @@ export class LoginCommandHandler implements ICommandHandler<LoginCommand, LoginR
       updateData.locked_until = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
     }
 
-    await this.dbService.getKnex()('user_logins').where({ id: loginId }).update(updateData);
+    await this.knex('user_logins').where({ id: loginId }).update(updateData);
   }
 
   private async recordSuccessfulLogin(loginId: string, ipAddress?: string): Promise<void> {
-    await this.dbService
-      .getKnex()('user_logins')
+    await this.knex('user_logins')
       .where({ id: loginId })
       .update({
         failed_attempts: 0,
         locked_until: null,
-        last_login_at: this.dbService.getKnex().fn.now(),
+        last_login_at: this.knex.fn.now(),
         last_login_ip: ipAddress || null,
-        updated_at: this.dbService.getKnex().fn.now(),
+        updated_at: this.knex.fn.now(),
       });
   }
 }

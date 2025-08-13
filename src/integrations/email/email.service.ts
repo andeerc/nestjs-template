@@ -64,4 +64,20 @@ export class EmailService {
 
     await this.sendEmail(emailData);
   }
+
+  async sendVerificationEmail(to: string, name: string, token: string): Promise<void> {
+    const emailData: SendEmailDto = {
+      to,
+      subject: 'Verify your email address',
+      template: 'email-verification',
+      context: {
+        name,
+        verificationUrl: `${process.env.FRONTEND_URL}/verify-email?token=${token}`,
+        token,
+        validFor: '24 hours',
+      },
+    };
+
+    await this.sendEmail(emailData);
+  }
 }

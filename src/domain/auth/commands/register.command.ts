@@ -8,7 +8,7 @@ import { RegisterResponseDto } from '../dto/login-response.dto';
 import { UserRole } from '../../users/entities/user.entity';
 import { LoginStatus } from '../entities/user-login.entity';
 import { JwtUtilService } from '@/infrastructure/auth/jwt-util.service';
-import { DatabaseService } from '@/infrastructure/database/database.service';
+import { InjectKnex, Knex } from 'nestjs-knex';
 
 export class RegisterCommand {
   constructor(public readonly registerDto: RegisterDto) {}
@@ -19,14 +19,13 @@ export class RegisterCommandHandler
   implements ICommandHandler<RegisterCommand, RegisterResponseDto>
 {
   constructor(
-    private readonly dbService: DatabaseService,
+    @InjectKnex() private readonly knex: Knex,
     private readonly jwtService: JwtUtilService,
   ) {}
 
   async execute(command: RegisterCommand): Promise<RegisterResponseDto> {
     // Check if user already exists
-    const existingLogin = await this.dbService
-      .getKnex()('user_logins')
+    const existingLogin = await this.knex('user_logins')
       .where({ email: command.registerDto.email })
       .first();
 
@@ -35,7 +34,7 @@ export class RegisterCommandHandler
     }
 
     // Start transaction
-    return this.dbService.getKnex().transaction(async (trx) => {
+    return this.knex.transaction(async (trx) => {
       try {
         // Create user record
         const userId = generateId();

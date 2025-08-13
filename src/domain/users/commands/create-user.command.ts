@@ -3,7 +3,8 @@ import { generateId } from '@/shared/utils/generate-id';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserDto } from '../dto/user.dto';
 import { UserRole } from '../entities/user.entity';
-import { DatabaseService } from '@/infrastructure/database/database.service';
+import { InjectKnex, Knex } from 'nestjs-knex';
+import { UserMapper } from '../utils/user-mapper.util';
 
 export class CreateUserCommand {
   constructor(public readonly createUserDto: CreateUserDto) {}
@@ -11,13 +12,12 @@ export class CreateUserCommand {
 
 @CommandHandler(CreateUserCommand)
 export class CreateUserCommandHandler implements ICommandHandler<CreateUserCommand, UserDto> {
-  constructor(private readonly dbService: DatabaseService) {}
+  constructor(@InjectKnex() private readonly knex: Knex) {}
 
   async execute(command: CreateUserCommand): Promise<UserDto> {
     const id = generateId();
 
-    const [user] = await this.dbService
-      .getKnex()('users')
+    const [user] = await this.knex('users')
       .insert({
         id,
         first_name: command.createUserDto.firstName,
@@ -37,24 +37,7 @@ export class CreateUserCommandHandler implements ICommandHandler<CreateUserComma
       })
       .returning('*');
 
-    return this.mapToDto(user);
+    return UserMapper.toDto(user);
   }
 
-  private mapToDto(user: any): UserDto {
-    return {
-      id: user.id,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      phone: user.phone,
-      avatarUrl: user.avatar_url,
-      role: user.role,
-      isActive: user.is_active,
-      emailVerified: user.email_verified,
-      emailVerifiedAt: user.email_verified_at,
-      preferences: user.preferences ? JSON.parse(user.preferences) : null,
-      metadata: user.metadata ? JSON.parse(user.metadata) : null,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-  }
 }

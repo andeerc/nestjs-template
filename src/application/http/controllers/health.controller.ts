@@ -1,13 +1,13 @@
 import { Controller, Get } from '@nestjs/common';
 import { ApiOperation, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { DatabaseService } from '@/infrastructure/database/database.service';
 import { CacheService } from '@/infrastructure/cache/cache.service';
+import { InjectKnex, Knex } from 'nestjs-knex';
 
 @ApiTags('Health')
 @Controller('health')
 export class HealthController {
   constructor(
-    private readonly databaseService: DatabaseService,
+    @InjectKnex() private readonly knex: Knex,
     private readonly cacheService: CacheService,
   ) {}
 
@@ -19,7 +19,7 @@ export class HealthController {
 
     try {
       // Test database connection
-      await this.databaseService.getKnex().raw('SELECT 1');
+      await this.knex.raw('SELECT 1');
 
       // Test cache connection
       await this.cacheService.set('health-check', 'ok', 10);
